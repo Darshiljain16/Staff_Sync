@@ -1,23 +1,20 @@
 import { Router } from 'express';
 import Leave from '../models/Leave.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { asyncHandler, canManage, pick, teamIds } from '../utils/helpers.js';
+import { asyncHandler, canManage, manageableIds, pick, MANAGEMENT } from '../utils/helpers.js';
 
 const router = Router();
 router.use(protect);
 
 // scope=mine (default): my own leaves
-// scope=review (manager/hr): leaves I am allowed to approve or reject
+// scope=review (management roles): leaves I am allowed to approve or reject
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     let filter = { employee: req.user._id };
     if (req.query.scope === 'review') {
-      if (req.user.role === 'employee') return res.status(403).json({ message: 'You do not have access to this' });
-      filter =
-        req.user.role === 'hr'
-          ? { employee: { $ne: req.user._id } }
-          : { employee: { $in: await teamIds(req.user) } };
+      if (!MANAGEMENT.includes(req.user.role)) return res.status(403).json({ message: 'You do not have access to this' });
+      filter = { employee: { $in: await manageableIds(req.user) } };
     }
     const leaves = await Leave.find(filter)
       .populate('employee', 'name department')
@@ -41,7 +38,7 @@ router.post(
 
 router.patch(
   '/:id/status',
-  authorize('hr', 'manager'),
+  authorize(...MANAGEMENT),
   asyncHandler(async (req, res) => {
     const { status } = req.body;
     if (!['approved', 'rejected'].includes(status)) {
@@ -53,7 +50,7 @@ router.patch(
       return res.status(403).json({ message: 'You cannot review your own leave request' });
     }
     if (!(await canManage(req.user, leave.employee))) {
-      return res.status(403).json({ message: 'This employee is not on your team' });
+      return res.status(403).json({ message: 'You cannot review this employee’s leave' });
     }
     if (leave.status !== 'pending') return res.status(400).json({ message: 'Leave was already reviewed' });
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api, { errMsg } from '../api';
 import { useAuth } from '../AuthContext';
-import { Alert, PageHeader, StatusBadge } from '../components/ui';
+import { Alert, Avatar, Empty, Icon, PageHeader, StatusBadge, Tabs } from '../components/ui';
 import { fmtTime, todayInput } from '../utils';
 
 export default function Attendance() {
@@ -9,10 +9,16 @@ export default function Attendance() {
   const canView = user.role !== 'employee';
   const [tab, setTab] = useState('mine');
   const [msg, setMsg] = useState(null);
+  const [now, setNow] = useState(new Date());
 
   const [mine, setMine] = useState([]); // my records this month
   const [date, setDate] = useState(todayInput());
-  const [records, setRecords] = useState([]); // everyone's (HR) or team's (manager) records for `date`
+  const [records, setRecords] = useState([]); // records of the people I manage for `date`
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const loadMine = useCallback(() => {
     api
@@ -31,11 +37,12 @@ export default function Attendance() {
   }, [tab, date]);
 
   const today = mine.find((r) => r.date === todayInput());
+  const hoursThisMonth = mine.reduce((sum, r) => sum + (r.hours || 0), 0);
 
   const mark = async (action) => {
     try {
       await api.post(`/attendance/${action}`);
-      setMsg({ ok: action === 'check-in' ? 'Checked in' : 'Checked out' });
+      setMsg({ ok: action === 'check-in' ? 'Checked in. Have a great day!' : 'Checked out. See you tomorrow!' });
       loadMine();
     } catch (err) {
       setMsg({ err: errMsg(err) });
@@ -44,70 +51,75 @@ export default function Attendance() {
 
   return (
     <>
-      <PageHeader title="Attendance" />
+      <PageHeader title="Attendance" subtitle="Check in when you start and check out when you finish." />
       <Alert msg={msg} onClose={() => setMsg(null)} />
 
-      {canView && (
-        <ul className="nav nav-tabs mb-3">
-          <li className="nav-item">
-            <button className={`nav-link ${tab === 'mine' ? 'active' : ''}`} onClick={() => setTab('mine')}>
-              My attendance
-            </button>
-          </li>
-          <li className="nav-item">
-            <button className={`nav-link ${tab === 'team' ? 'active' : ''}`} onClick={() => setTab('team')}>
-              {user.role === 'hr' ? 'Everyone' : 'My team'}
-            </button>
-          </li>
-        </ul>
-      )}
+      {canView && <Tabs items={[['mine', 'My attendance'], ['team', 'My people']]} value={tab} onChange={setTab} />}
 
       {tab === 'mine' && (
         <>
-          <div className="card shadow-sm mb-4">
-            <div className="card-body d-flex flex-wrap align-items-center gap-3">
-              <div className="flex-grow-1">
-                <div className="fw-semibold">Today</div>
-                <div className="text-muted">
-                  {today
-                    ? `In ${fmtTime(today.checkIn)}${today.checkOut ? ` · Out ${fmtTime(today.checkOut)}` : ''}`
-                    : 'You have not checked in yet'}
+          <div className="row g-3 mb-4">
+            <div className="col-lg-6">
+              <div className="card h-100">
+                <div className="card-body d-flex flex-wrap align-items-center gap-3">
+                  <div className="flex-grow-1">
+                    <div className="clock">{now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+                    <div className="text-muted">
+                      {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                      {today && ` · In ${fmtTime(today.checkIn)}${today.checkOut ? ` · Out ${fmtTime(today.checkOut)}` : ''}`}
+                    </div>
+                  </div>
+                  <div className="d-flex gap-2">
+                    <button className="btn btn-success px-3" disabled={!!today} onClick={() => mark('check-in')}>
+                      <Icon name="box-arrow-in-right" className="me-2" />
+                      Check in
+                    </button>
+                    <button className="btn btn-outline-danger px-3" disabled={!today || !!today.checkOut} onClick={() => mark('check-out')}>
+                      <Icon name="box-arrow-right" className="me-2" />
+                      Check out
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button className="btn btn-success" disabled={!!today} onClick={() => mark('check-in')}>
-                Check in
-              </button>
-              <button className="btn btn-outline-danger" disabled={!today || !!today.checkOut} onClick={() => mark('check-out')}>
-                Check out
-              </button>
+            </div>
+            <div className="col-6 col-lg-3">
+              <div className="card h-100">
+                <div className="card-body">
+                  <div className="stat-value">{mine.length}</div>
+                  <div className="stat-label">Days present this month</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-6 col-lg-3">
+              <div className="card h-100">
+                <div className="card-body">
+                  <div className="stat-value">{Math.round(hoursThisMonth * 10) / 10}</div>
+                  <div className="stat-label">Hours this month</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="card shadow-sm">
-            <div className="card-header fw-semibold">This month</div>
+          <div className="card">
+            <div className="card-header">This month</div>
             <div className="table-responsive">
               <table className="table mb-0">
-                <thead className="table-light">
+                <thead>
                   <tr>
                     <th>Date</th>
                     <th>In</th>
                     <th>Out</th>
+                    <th>Hours</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {mine.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="text-center text-muted py-4">
-                        No records yet
-                      </td>
-                    </tr>
-                  )}
                   {mine.map((r) => (
                     <tr key={r._id}>
                       <td>{r.date}</td>
                       <td>{fmtTime(r.checkIn)}</td>
                       <td>{fmtTime(r.checkOut)}</td>
+                      <td>{r.hours ?? '—'}</td>
                       <td>
                         <StatusBadge status={r.status} />
                       </td>
@@ -115,6 +127,7 @@ export default function Attendance() {
                   ))}
                 </tbody>
               </table>
+              {mine.length === 0 && <Empty icon="clock" text="No records yet this month" />}
             </div>
           </div>
         </>
@@ -123,10 +136,10 @@ export default function Attendance() {
       {tab === 'team' && (
         <>
           <input type="date" className="form-control w-auto mb-3" value={date} onChange={(e) => setDate(e.target.value)} />
-          <div className="card shadow-sm">
+          <div className="card">
             <div className="table-responsive">
               <table className="table mb-0">
-                <thead className="table-light">
+                <thead>
                   <tr>
                     <th>Employee</th>
                     <th>In</th>
@@ -135,16 +148,14 @@ export default function Attendance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="text-center text-muted py-4">
-                        No check-ins on this day
-                      </td>
-                    </tr>
-                  )}
                   {records.map((r) => (
                     <tr key={r._id}>
-                      <td>{r.employee?.name}</td>
+                      <td>
+                        <div className="d-flex align-items-center gap-2">
+                          <Avatar name={r.employee?.name} size={30} />
+                          {r.employee?.name}
+                        </div>
+                      </td>
                       <td>{fmtTime(r.checkIn)}</td>
                       <td>{fmtTime(r.checkOut)}</td>
                       <td>
@@ -154,6 +165,7 @@ export default function Attendance() {
                   ))}
                 </tbody>
               </table>
+              {records.length === 0 && <Empty icon="clock" text="Nobody checked in on this day" />}
             </div>
           </div>
         </>

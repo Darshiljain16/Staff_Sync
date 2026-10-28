@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import Training from '../models/Training.js';
-import User from '../models/User.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { asyncHandler, pick, teamIds } from '../utils/helpers.js';
+import { asyncHandler, manageableIds, pick, MANAGEMENT } from '../utils/helpers.js';
 
 const router = Router();
 router.use(protect);
@@ -17,19 +16,14 @@ router.get(
   })
 );
 
-// A manager may only add their own team; HR may add any active employee.
-const allowedUserIds = async (actor, ids = []) => {
-  const pool = actor.role === 'hr' ? await User.find({ active: true }).distinct('_id') : await teamIds(actor);
-  const allowed = new Set(pool.map(String));
-  return ids.filter((id) => allowed.has(String(id)));
-};
-
+// Programs can only be assigned to the people the creator manages
 router.post(
   '/',
-  authorize('hr', 'manager'),
+  authorize(...MANAGEMENT),
   asyncHandler(async (req, res) => {
     const data = pick(req.body, ['title', 'description', 'trainer', 'startDate', 'endDate']);
-    const ids = await allowedUserIds(req.user, req.body.participantIds);
+    const allowed = new Set((await manageableIds(req.user)).map(String));
+    const ids = (req.body.participantIds || []).filter((id) => allowed.has(String(id)));
     const training = await Training.create({
       ...data,
       createdBy: req.user._id,
@@ -75,11 +69,11 @@ router.patch(
 
 router.delete(
   '/:id',
-  authorize('hr', 'manager'),
+  authorize(...MANAGEMENT),
   asyncHandler(async (req, res) => {
     const training = await Training.findById(req.params.id);
     if (!training) return res.status(404).json({ message: 'Training not found' });
-    if (req.user.role !== 'hr' && !training.createdBy.equals(req.user._id)) {
+    if (req.user.role === 'manager' && !training.createdBy.equals(req.user._id)) {
       return res.status(403).json({ message: 'Only the creator or HR can delete this training' });
     }
     await training.deleteOne();

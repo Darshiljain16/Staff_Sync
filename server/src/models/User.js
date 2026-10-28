@@ -6,10 +6,11 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: [6, 'Password must be at least 6 characters'], select: false },
-    role: { type: String, enum: ['hr', 'manager', 'employee'], default: 'employee' },
+    role: { type: String, enum: ['admin', 'ceo', 'hr', 'manager', 'employee'], default: 'employee' },
     department: { type: String, trim: true },
     designation: { type: String, trim: true },
     phone: { type: String, trim: true },
+    // Everyone except the admin and the CEO reports to someone
     manager: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     joinDate: { type: Date, default: Date.now },
     active: { type: Boolean, default: true },

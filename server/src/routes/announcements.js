@@ -6,6 +6,8 @@ import { asyncHandler, pick } from '../utils/helpers.js';
 const router = Router();
 router.use(protect);
 
+const POSTERS = ['admin', 'ceo', 'hr'];
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -15,7 +17,7 @@ router.get(
 
 router.post(
   '/',
-  authorize('hr'),
+  authorize(...POSTERS),
   asyncHandler(async (req, res) => {
     const item = await Announcement.create({ ...pick(req.body, ['title', 'body']), author: req.user._id });
     res.status(201).json(item);
@@ -24,7 +26,7 @@ router.post(
 
 router.delete(
   '/:id',
-  authorize('hr'),
+  authorize(...POSTERS),
   asyncHandler(async (req, res) => {
     const item = await Announcement.findByIdAndDelete(req.params.id);
     if (!item) return res.status(404).json({ message: 'Announcement not found' });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api, { errMsg } from '../api';
 import { useAuth } from '../AuthContext';
-import { Alert, PageHeader, StatusBadge } from '../components/ui';
+import { Alert, Avatar, Empty, Icon, PageHeader, ROLE_LABEL, StatusBadge } from '../components/ui';
 import { toInput } from '../utils';
 
 const BLANK = {
@@ -9,9 +9,14 @@ const BLANK = {
   designation: '', phone: '', manager: '', joinDate: '', active: true,
 };
 
+// Who each role reports to
+const BOSS_ROLES = { employee: ['manager', 'ceo'], manager: ['ceo'], hr: ['ceo'], ceo: [], admin: [] };
+
 export default function Employees() {
   const { user } = useAuth();
-  const isHr = user.role === 'hr';
+  const canEditPeople = user.role === 'admin' || user.role === 'hr';
+  const roleChoices = user.role === 'admin' ? ['employee', 'manager', 'hr', 'ceo', 'admin'] : ['employee', 'manager'];
+
   const [list, setList] = useState([]);
   const [form, setForm] = useState(null); // null = hidden
   const [editingId, setEditingId] = useState(null);
@@ -27,6 +32,14 @@ export default function Employees() {
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
 
+  const changeRole = (e) => {
+    const role = e.target.value;
+    const stillValid = list.find((u) => u._id === form.manager && BOSS_ROLES[role].includes(u.role));
+    setForm({ ...form, role, manager: stillValid ? form.manager : '' });
+  };
+
+  const bosses = form ? list.filter((u) => u.active && BOSS_ROLES[form.role].includes(u.role) && u._id !== editingId) : [];
+
   const openNew = () => {
     setEditingId(null);
     setForm(BLANK);
@@ -34,13 +47,8 @@ export default function Employees() {
 
   const openEdit = (emp) => {
     setEditingId(emp._id);
-    setForm({
-      ...BLANK,
-      ...emp,
-      password: '',
-      manager: emp.manager?._id || '',
-      joinDate: toInput(emp.joinDate),
-    });
+    setForm({ ...BLANK, ...emp, password: '', manager: emp.manager?._id || '', joinDate: toInput(emp.joinDate) });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const save = async (e) => {
@@ -50,7 +58,7 @@ export default function Employees() {
       if (!body.password) delete body.password;
       if (editingId) await api.put(`/employees/${editingId}`, body);
       else await api.post('/employees', body);
-      setMsg({ ok: editingId ? 'Employee updated' : 'Employee created' });
+      setMsg({ ok: editingId ? 'Employee updated' : 'Employee added' });
       setForm(null);
       load();
     } catch (err) {
@@ -69,25 +77,27 @@ export default function Employees() {
     }
   };
 
-  const managers = list.filter((u) => u.role === 'manager');
+  // HR can only change managers and employees; admin can change anyone
+  const canTouch = (u) => canEditPeople && (user.role === 'admin' || ['manager', 'employee'].includes(u.role));
 
   return (
     <>
-      <PageHeader title={isHr ? 'Employees' : 'My team'}>
-        {isHr && (
+      <PageHeader title={canEditPeople || user.role === 'ceo' ? 'Employees' : 'My team'} subtitle={`${list.length} people`}>
+        {canEditPeople && (
           <button className="btn btn-primary" onClick={openNew}>
-            + Add employee
+            <Icon name="person-plus-fill" className="me-2" />
+            Add employee
           </button>
         )}
       </PageHeader>
       <Alert msg={msg} onClose={() => setMsg(null)} />
 
       {form && (
-        <form className="card shadow-sm mb-4" onSubmit={save}>
-          <div className="card-header fw-semibold">{editingId ? 'Edit employee' : 'New employee'}</div>
+        <form className="card mb-4" onSubmit={save}>
+          <div className="card-header">{editingId ? 'Edit employee' : 'Add a new employee'}</div>
           <div className="card-body row g-3">
             <div className="col-md-4">
-              <label className="form-label">Name</label>
+              <label className="form-label">Full name</label>
               <input className="form-control" required value={form.name} onChange={set('name')} />
             </div>
             <div className="col-md-4">
@@ -95,23 +105,33 @@ export default function Employees() {
               <input type="email" className="form-control" required value={form.email} onChange={set('email')} />
             </div>
             <div className="col-md-4">
-              <label className="form-label">Password {editingId && <span className="text-muted">(leave blank to keep)</span>}</label>
-              <input
-                type="password"
-                className="form-control"
-                minLength={6}
-                required={!editingId}
-                value={form.password}
-                onChange={set('password')}
-              />
+              <label className="form-label">Password {editingId && <span className="fw-normal">(blank = keep)</span>}</label>
+              <input type="password" className="form-control" minLength={6} required={!editingId} value={form.password} onChange={set('password')} />
             </div>
             <div className="col-md-3">
               <label className="form-label">Role</label>
-              <select className="form-select" value={form.role} onChange={set('role')}>
-                <option value="employee">Employee</option>
-                <option value="manager">Manager</option>
-                <option value="hr">HR</option>
+              <select className="form-select" value={form.role} onChange={changeRole}>
+                {roleChoices.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABEL[r]}
+                  </option>
+                ))}
               </select>
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Reports to</label>
+              {BOSS_ROLES[form.role].length === 0 ? (
+                <input className="form-control" disabled value="No manager needed" />
+              ) : (
+                <select className="form-select" required value={form.manager} onChange={set('manager')}>
+                  <option value="">Select manager…</option>
+                  {bosses.map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.name} ({ROLE_LABEL[m.role]})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="col-md-3">
               <label className="form-label">Department</label>
@@ -125,24 +145,13 @@ export default function Employees() {
               <label className="form-label">Phone</label>
               <input className="form-control" value={form.phone} onChange={set('phone')} />
             </div>
-            <div className="col-md-4">
-              <label className="form-label">Reports to</label>
-              <select className="form-select" value={form.manager} onChange={set('manager')}>
-                <option value="">— None —</option>
-                {managers.map((m) => (
-                  <option key={m._id} value={m._id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-4">
+            <div className="col-md-3">
               <label className="form-label">Join date</label>
               <input type="date" className="form-control" value={form.joinDate} onChange={set('joinDate')} />
             </div>
-            <div className="col-md-4 d-flex align-items-end">
-              <div className="form-check">
-                <input id="active" type="checkbox" className="form-check-input" checked={form.active} onChange={set('active')} />
+            <div className="col-md-3 d-flex align-items-end">
+              <div className="form-check form-switch">
+                <input id="active" type="checkbox" role="switch" className="form-check-input" checked={form.active} onChange={set('active')} />
                 <label htmlFor="active" className="form-check-label">
                   Account active
                 </label>
@@ -150,65 +159,66 @@ export default function Employees() {
             </div>
           </div>
           <div className="card-footer d-flex gap-2">
-            <button className="btn btn-primary">Save</button>
-            <button type="button" className="btn btn-outline-secondary" onClick={() => setForm(null)}>
+            <button className="btn btn-primary">{editingId ? 'Save changes' : 'Add employee'}</button>
+            <button type="button" className="btn btn-light" onClick={() => setForm(null)}>
               Cancel
             </button>
           </div>
         </form>
       )}
 
-      <div className="card shadow-sm">
+      <div className="card">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
-            <thead className="table-light">
+            <thead>
               <tr>
-                <th>Name</th>
+                <th>Employee</th>
                 <th>Role</th>
                 <th>Department</th>
-                <th>Designation</th>
                 <th>Reports to</th>
                 <th>Status</th>
-                {isHr && <th />}
+                {canEditPeople && <th />}
               </tr>
             </thead>
             <tbody>
-              {list.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
-                    No employees found
-                  </td>
-                </tr>
-              )}
               {list.map((u) => (
                 <tr key={u._id}>
                   <td>
-                    <div className="fw-semibold">{u.name}</div>
-                    <div className="small text-muted">{u.email}</div>
+                    <div className="d-flex align-items-center gap-3">
+                      <Avatar name={u.name} />
+                      <div>
+                        <div className="fw-semibold">{u.name}</div>
+                        <div className="small text-muted">{u.designation || u.email}</div>
+                      </div>
+                    </div>
                   </td>
                   <td>
                     <StatusBadge status={u.role} />
                   </td>
                   <td>{u.department || '—'}</td>
-                  <td>{u.designation || '—'}</td>
                   <td>{u.manager?.name || '—'}</td>
                   <td>
                     <StatusBadge status={u.active ? 'active' : 'inactive'} />
                   </td>
-                  {isHr && (
+                  {canEditPeople && (
                     <td className="text-end text-nowrap">
-                      <button className="btn btn-sm btn-outline-primary me-1" onClick={() => openEdit(u)}>
-                        Edit
-                      </button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => remove(u)} disabled={u._id === user._id}>
-                        Delete
-                      </button>
+                      {canTouch(u) && (
+                        <>
+                          <button className="btn btn-sm btn-light me-1" onClick={() => openEdit(u)} title="Edit">
+                            <Icon name="pencil-square" />
+                          </button>
+                          <button className="btn btn-sm btn-light text-danger" onClick={() => remove(u)} disabled={u._id === user._id} title="Delete">
+                            <Icon name="trash" />
+                          </button>
+                        </>
+                      )}
                     </td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
+          {list.length === 0 && <Empty icon="people" text="No employees yet" />}
         </div>
       </div>
     </>

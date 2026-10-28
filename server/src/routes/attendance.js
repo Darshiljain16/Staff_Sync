@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import Attendance from '../models/Attendance.js';
-import User from '../models/User.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { asyncHandler, localDate, teamIds } from '../utils/helpers.js';
+import { asyncHandler, localDate, manageableIds, MANAGEMENT } from '../utils/helpers.js';
 
 const router = Router();
 router.use(protect);
@@ -53,14 +52,13 @@ router.get(
   })
 );
 
-// HR: everyone, manager: team. Check-ins for one day.
+// Check-ins of the people I manage for one day (?date=YYYY-MM-DD, defaults to today)
 router.get(
   '/',
-  authorize('hr', 'manager'),
+  authorize(...MANAGEMENT),
   asyncHandler(async (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : localDate();
-    const ids = req.user.role === 'hr' ? await User.find({ active: true }).distinct('_id') : await teamIds(req.user);
-
+    const ids = await manageableIds(req.user);
     const records = await Attendance.find({ date, employee: { $in: ids } })
       .populate('employee', 'name department')
       .sort({ checkIn: 1 });

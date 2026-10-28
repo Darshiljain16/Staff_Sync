@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api, { errMsg } from '../api';
 import { useAuth } from '../AuthContext';
-import { Alert, PageHeader, StatusBadge } from '../components/ui';
+import { Alert, Avatar, Empty, Icon, PageHeader, StatusBadge, Tabs } from '../components/ui';
 import { fmtDate, todayInput } from '../utils';
 
 const BLANK = { type: 'casual', startDate: '', endDate: '', reason: '' };
@@ -48,27 +48,16 @@ export default function Leaves() {
 
   return (
     <>
-      <PageHeader title="Leaves" />
+      <PageHeader title="Leaves" subtitle="Apply for time off and track approvals." />
       <Alert msg={msg} onClose={() => setMsg(null)} />
 
       {canReview && (
-        <ul className="nav nav-tabs mb-3">
-          <li className="nav-item">
-            <button className={`nav-link ${tab === 'mine' ? 'active' : ''}`} onClick={() => setTab('mine')}>
-              My leaves
-            </button>
-          </li>
-          <li className="nav-item">
-            <button className={`nav-link ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
-              {user.role === 'hr' ? 'All requests' : 'Team requests'}
-            </button>
-          </li>
-        </ul>
+        <Tabs items={[['mine', 'My leaves'], ['review', 'To review']]} value={tab} onChange={setTab} />
       )}
 
       {tab === 'mine' && (
-        <form className="card shadow-sm mb-4" onSubmit={apply}>
-          <div className="card-header fw-semibold">Apply for leave</div>
+        <form className="card mb-4" onSubmit={apply}>
+          <div className="card-header">Apply for leave</div>
           <div className="card-body row g-3">
             <div className="col-md-3">
               <label className="form-label">Type</label>
@@ -85,14 +74,7 @@ export default function Leaves() {
             </div>
             <div className="col-md-3">
               <label className="form-label">To</label>
-              <input
-                type="date"
-                className="form-control"
-                required
-                min={form.startDate || todayInput()}
-                value={form.endDate}
-                onChange={set('endDate')}
-              />
+              <input type="date" className="form-control" required min={form.startDate || todayInput()} value={form.endDate} onChange={set('endDate')} />
             </div>
             <div className="col-md-12">
               <label className="form-label">Reason</label>
@@ -100,15 +82,18 @@ export default function Leaves() {
             </div>
           </div>
           <div className="card-footer">
-            <button className="btn btn-primary">Submit request</button>
+            <button className="btn btn-primary">
+              <Icon name="send" className="me-2" />
+              Submit request
+            </button>
           </div>
         </form>
       )}
 
-      <div className="card shadow-sm">
+      <div className="card">
         <div className="table-responsive">
           <table className="table align-middle mb-0">
-            <thead className="table-light">
+            <thead>
               <tr>
                 {tab === 'review' && <th>Employee</th>}
                 <th>Type</th>
@@ -119,19 +104,17 @@ export default function Leaves() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
-                    No leave requests
-                  </td>
-                </tr>
-              )}
               {items.map((l) => (
                 <tr key={l._id}>
                   {tab === 'review' && (
                     <td>
-                      <div className="fw-semibold">{l.employee?.name}</div>
-                      <div className="small text-muted">{l.employee?.department}</div>
+                      <div className="d-flex align-items-center gap-2">
+                        <Avatar name={l.employee?.name} size={32} />
+                        <div>
+                          <div className="fw-semibold">{l.employee?.name}</div>
+                          <div className="small text-muted">{l.employee?.department}</div>
+                        </div>
+                      </div>
                     </td>
                   )}
                   <td className="text-capitalize">{l.type}</td>
@@ -141,6 +124,7 @@ export default function Leaves() {
                   <td>{l.reason}</td>
                   <td>
                     <StatusBadge status={l.status} />
+                    {l.reviewedBy && <div className="small text-muted mt-1">by {l.reviewedBy.name}</div>}
                   </td>
                   <td className="text-end text-nowrap">
                     {tab === 'review' && l.status === 'pending' && (
@@ -158,6 +142,7 @@ export default function Leaves() {
               ))}
             </tbody>
           </table>
+          {items.length === 0 && <Empty icon="calendar2-x" text="No leave requests" />}
         </div>
       </div>
     </>

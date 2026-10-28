@@ -23,6 +23,12 @@ router.post(
   })
 );
 
-router.get('/me', protect, (req, res) => res.json(req.user));
+router.get(
+  '/me',
+  protect,
+  asyncHandler(async (req, res) => {
+    res.json(await req.user.populate('manager', 'name role'));
+  })
+);
 
 export default router;
