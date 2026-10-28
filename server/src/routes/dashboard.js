@@ -54,7 +54,8 @@ router.get(
     const week = days.map((date) => ({ date, hours: records.find((r) => r.date === date)?.hours || 0 }));
 
     const announcements = await Announcement.find().populate('author', 'name').sort({ createdAt: -1 }).limit(3);
-    res.json({ stats, week, announcements });
+    const attendanceToday = await Attendance.findOne({ employee: me._id, date: today });
+    res.json({ stats, week, announcements, attendanceToday });
   })
 );
 

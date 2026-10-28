@@ -31,8 +31,28 @@ router.post(
     if (new Date(data.endDate) < new Date(data.startDate)) {
       return res.status(400).json({ message: 'End date cannot be before start date' });
     }
+    const overlap = await Leave.exists({
+      employee: req.user._id,
+      status: { $in: ['pending', 'approved'] },
+      startDate: { $lte: new Date(data.endDate) },
+      endDate: { $gte: new Date(data.startDate) },
+    });
+    if (overlap) return res.status(400).json({ message: 'You already have a leave request for these dates' });
+
     const leave = await Leave.create({ ...data, employee: req.user._id });
     res.status(201).json(leave);
+  })
+);
+
+// Employees can withdraw their own pending requests
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const leave = await Leave.findOne({ _id: req.params.id, employee: req.user._id });
+    if (!leave) return res.status(404).json({ message: 'Leave request not found' });
+    if (leave.status !== 'pending') return res.status(400).json({ message: 'Only pending requests can be withdrawn' });
+    await leave.deleteOne();
+    res.json({ message: 'Leave request withdrawn' });
   })
 );
 

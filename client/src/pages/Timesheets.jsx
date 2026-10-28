@@ -123,6 +123,12 @@ export default function Timesheets() {
                 </span>
               </div>
               <div className="card-body">
+                {sheet.status === 'rejected' && (
+                  <div className="alert alert-warning border-0 rounded-3">
+                    <Icon name="exclamation-triangle" className="me-2" />
+                    Your manager sent this timesheet back. Fix the entries and submit it again.
+                  </div>
+                )}
                 {rows.length === 0 && <Empty icon="journal-plus" text="No entries yet. Add your first one." />}
                 {rows.map((r, i) => (
                   <div className="row g-2 mb-2 align-items-center" key={i}>

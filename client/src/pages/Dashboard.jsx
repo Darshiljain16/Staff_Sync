@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api, { errMsg } from '../api';
 import { useAuth } from '../AuthContext';
 import { Alert, Empty, Icon, PageHeader } from '../components/ui';
-import { fmtDate } from '../utils';
+import { fmtDate, fmtTime } from '../utils';
 
 const TONES = ['#4f46e5', '#0ea5e9', '#f59e0b', '#10b981'];
 
@@ -11,18 +11,43 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [msg, setMsg] = useState(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api
       .get('/dashboard')
       .then((res) => setData(res.data))
       .catch((e) => setMsg({ err: errMsg(e) }));
   }, []);
+  useEffect(load, [load]);
+
+  const mark = async (action) => {
+    try {
+      await api.post(`/attendance/${action}`);
+      setMsg({ ok: action === 'check-in' ? 'Checked in. Have a great day!' : 'Checked out. See you tomorrow!' });
+      load();
+    } catch (err) {
+      setMsg({ err: errMsg(err) });
+    }
+  };
 
   const max = data ? Math.max(8, ...data.week.map((d) => d.hours)) : 8;
+  const today = data?.attendanceToday;
 
   return (
     <>
-      <PageHeader title={`Hello, ${user.name.split(' ')[0]} 👋`} subtitle="Here is what’s happening today." />
+      <PageHeader title={`Hello, ${user.name.split(' ')[0]} 👋`} subtitle="Here is what’s happening today.">
+        {data && (
+          <>
+            <button className="btn btn-success" disabled={!!today} onClick={() => mark('check-in')}>
+              <Icon name="box-arrow-in-right" className="me-2" />
+              {today ? `In at ${fmtTime(today.checkIn)}` : 'Check in'}
+            </button>
+            <button className="btn btn-outline-danger" disabled={!today || !!today.checkOut} onClick={() => mark('check-out')}>
+              <Icon name="box-arrow-right" className="me-2" />
+              {today?.checkOut ? `Out at ${fmtTime(today.checkOut)}` : 'Check out'}
+            </button>
+          </>
+        )}
+      </PageHeader>
       <Alert msg={msg} onClose={() => setMsg(null)} />
       {data && (
         <>

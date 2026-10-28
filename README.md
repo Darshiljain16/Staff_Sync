@@ -63,6 +63,8 @@ Demo logins after seeding (password `Password@123` for all):
 - `manageableIds(user)` decides whose leaves, timesheets and attendance a user may see or approve:
   admin/CEO → everyone, HR → employees and managers, manager → direct reports, employee → nobody.
 
+More detail (architecture, setup, backend, database, frontend, demo walk-through): [docs/SKILLWALLET_SUBMISSION.md](docs/SKILLWALLET_SUBMISSION.md).
+
 ## API
 
 `/api/auth` · `/api/employees` · `/api/leaves` · `/api/attendance` · `/api/timesheets` · `/api/announcements` · `/api/training` · `/api/dashboard`

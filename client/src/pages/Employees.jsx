@@ -21,6 +21,8 @@ export default function Employees() {
   const [form, setForm] = useState(null); // null = hidden
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
 
   const load = useCallback(() => {
     api
@@ -79,6 +81,13 @@ export default function Employees() {
 
   // HR can only change managers and employees; admin can change anyone
   const canTouch = (u) => canEditPeople && (user.role === 'admin' || ['manager', 'employee'].includes(u.role));
+
+  const q = search.trim().toLowerCase();
+  const shown = list.filter(
+    (u) =>
+      (!roleFilter || u.role === roleFilter) &&
+      (!q || [u.name, u.email, u.department, u.designation].some((v) => (v || '').toLowerCase().includes(q)))
+  );
 
   return (
     <>
@@ -167,6 +176,22 @@ export default function Employees() {
         </form>
       )}
 
+      <div className="row g-2 mb-3">
+        <div className="col-md-6 col-lg-4">
+          <input className="form-control" placeholder="Search name, email, department…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="col-md-4 col-lg-3">
+          <select className="form-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+            <option value="">All roles</option>
+            {Object.keys(ROLE_LABEL).map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="card">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -174,14 +199,14 @@ export default function Employees() {
               <tr>
                 <th>Employee</th>
                 <th>Role</th>
-                <th>Department</th>
+                <th className="d-none d-xl-table-cell">Department</th>
                 <th>Reports to</th>
                 <th>Status</th>
                 {canEditPeople && <th />}
               </tr>
             </thead>
             <tbody>
-              {list.map((u) => (
+              {shown.map((u) => (
                 <tr key={u._id}>
                   <td>
                     <div className="d-flex align-items-center gap-3">
@@ -195,7 +220,7 @@ export default function Employees() {
                   <td>
                     <StatusBadge status={u.role} />
                   </td>
-                  <td>{u.department || '—'}</td>
+                  <td className="d-none d-xl-table-cell">{u.department || '—'}</td>
                   <td>{u.manager?.name || '—'}</td>
                   <td>
                     <StatusBadge status={u.active ? 'active' : 'inactive'} />
@@ -218,7 +243,7 @@ export default function Employees() {
               ))}
             </tbody>
           </table>
-          {list.length === 0 && <Empty icon="people" text="No employees yet" />}
+          {shown.length === 0 && <Empty icon="people" text="No employees found" />}
         </div>
       </div>
     </>

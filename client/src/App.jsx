@@ -9,6 +9,7 @@ import Attendance from './pages/Attendance';
 import Timesheets from './pages/Timesheets';
 import Training from './pages/Training';
 import Announcements from './pages/Announcements';
+import Profile from './pages/Profile';
 
 function Protected({ roles, children }) {
   const { user, loading } = useAuth();
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="timesheets" element={<Timesheets />} />
         <Route path="training" element={<Training />} />
         <Route path="announcements" element={<Announcements />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

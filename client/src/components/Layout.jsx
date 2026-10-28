@@ -45,11 +45,13 @@ export default function Layout() {
           ))}
         </nav>
         <div className="side-user">
-          <Avatar name={user.name} size={38} />
-          <div className="flex-grow-1" style={{ minWidth: 0 }}>
-            <div className="name text-truncate">{user.name}</div>
-            <div className="role">{ROLE_LABEL[user.role]}</div>
-          </div>
+          <NavLink to="/profile" className="d-flex align-items-center gap-2 flex-grow-1 text-decoration-none" style={{ minWidth: 0 }} onClick={() => setOpen(false)} title="My profile">
+            <Avatar name={user.name} size={38} />
+            <div style={{ minWidth: 0 }}>
+              <div className="name text-truncate">{user.name}</div>
+              <div className="role">{ROLE_LABEL[user.role]}</div>
+            </div>
+          </NavLink>
           <button className="btn btn-sm text-white-50 p-1" title="Sign out" onClick={signOut}>
             <Icon name="box-arrow-right" className="fs-5" />
           </button>

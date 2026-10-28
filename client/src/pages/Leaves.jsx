@@ -46,6 +46,18 @@ export default function Leaves() {
     }
   };
 
+  const withdraw = async (leave) => {
+    try {
+      await api.delete(`/leaves/${leave._id}`);
+      setMsg({ ok: 'Leave request withdrawn' });
+      load();
+    } catch (err) {
+      setMsg({ err: errMsg(err) });
+    }
+  };
+
+  const days = (l) => Math.round((new Date(l.endDate) - new Date(l.startDate)) / 864e5) + 1;
+
   return (
     <>
       <PageHeader title="Leaves" subtitle="Apply for time off and track approvals." />
@@ -120,6 +132,7 @@ export default function Leaves() {
                   <td className="text-capitalize">{l.type}</td>
                   <td className="text-nowrap">
                     {fmtDate(l.startDate)} → {fmtDate(l.endDate)}
+                    <div className="small text-muted">{days(l)} day{days(l) > 1 ? 's' : ''}</div>
                   </td>
                   <td>{l.reason}</td>
                   <td>
@@ -127,6 +140,11 @@ export default function Leaves() {
                     {l.reviewedBy && <div className="small text-muted mt-1">by {l.reviewedBy.name}</div>}
                   </td>
                   <td className="text-end text-nowrap">
+                    {tab === 'mine' && l.status === 'pending' && (
+                      <button className="btn btn-sm btn-light text-danger" onClick={() => withdraw(l)}>
+                        Withdraw
+                      </button>
+                    )}
                     {tab === 'review' && l.status === 'pending' && (
                       <>
                         <button className="btn btn-sm btn-success me-1" onClick={() => review(l, 'approved')}>
