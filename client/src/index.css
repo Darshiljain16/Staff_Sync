@@ -1,0 +1,51 @@
+body {
+  background: #f4f6fb;
+}
+
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: #1f2a44;
+}
+
+.sidebar .brand {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.3px;
+}
+
+.sidebar .nav-link {
+  color: #c5cde0;
+  border-radius: 6px;
+  padding: 0.55rem 0.8rem;
+}
+
+.sidebar .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.sidebar .nav-link.active {
+  background: #3b6cf6;
+  color: #fff;
+}
+
+.stat-card .value {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 767.98px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+  }
+}
